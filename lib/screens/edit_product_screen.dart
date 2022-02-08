@@ -20,6 +20,7 @@ class _EditProductsScreenState extends State<EditProductsScreen> {
   final _form = GlobalKey<FormState>();
   Product _editedProduct = Product(id: '', title: '', price: 0, desc: '', imageUrl: '');
   var _isInit = true;
+  var _isLoading = false;
   var _initValues = {
     'title': '',
     'description': '',
@@ -33,8 +34,9 @@ class _EditProductsScreenState extends State<EditProductsScreen> {
     _descFocusNode.dispose();
     _imageUrlController.dispose();
     _imageUrlFocusNode.dispose();
-    _imageUrlFocusNode.removeListener(_updateImageUrl);
+    // _imageUrlFocusNode.removeListener(_updateImageUrl);
     super.dispose();
+
   }
 
 
@@ -72,18 +74,49 @@ class _EditProductsScreenState extends State<EditProductsScreen> {
     }
    }
 
-   void _saveForm(){
-    bool isValid = _form.currentState?.validate() as bool;
-    if(!isValid){
-      return;
-    }
-      _form.currentState?.save();
-    if(_editedProduct.id.isNotEmpty){
-      Provider.of<Products>(context, listen: false).updateProduct(_editedProduct.id, _editedProduct);
-    }else{
-      Provider.of<Products>(context, listen: false).addProduct(_editedProduct);
-    }
-      Navigator.of(context).pop();
+   void _saveForm() async {
+     bool isValid = _form.currentState?.validate() as bool;
+     if (!isValid) {
+       return;
+     }
+     _form.currentState?.save();
+     setState(() {
+       _isLoading = true;
+     });
+     if (_editedProduct.id.isNotEmpty) {
+       Provider.of<Products>(context, listen: false).updateProduct(
+           _editedProduct.id, _editedProduct);
+       setState(() {
+         _isLoading = false;
+       });
+       Navigator.of(context).pop();
+     } else {
+       try{
+         await Provider.of<Products>(context, listen: false)
+             .addProduct(_editedProduct);
+       }catch(error){
+         showDialog<Null>(
+             context: context,
+             builder: (ctx) => AlertDialog(
+               title: Text('An error occurred!'),
+               content: Text('Something went wrong.'),
+               actions: [
+                 FlatButton(onPressed: (){
+                   Navigator.of(ctx).pop();
+                 },
+                     child: Text('Okay')
+                 )
+               ],
+             )
+         );
+       }finally{
+         setState(() {
+           _isLoading = false;
+         });
+         Navigator.of(context).pop();
+       }
+
+     }
    }
 
   @override
@@ -97,7 +130,11 @@ class _EditProductsScreenState extends State<EditProductsScreen> {
               icon: Icon(Icons.save))
         ],
       ),
-      body: Padding(
+      body: _isLoading ?
+          Center(
+              child: CircularProgressIndicator(),
+          )
+          : Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _form,
