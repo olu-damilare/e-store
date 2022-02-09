@@ -5,9 +5,17 @@ import 'package:my_shop/providers/orders.dart';
 import 'package:my_shop/widgets/CartItem.dart';
 import 'package:provider/provider.dart';
 
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
 
   static const routeName = '/cart';
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+
+  var _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -37,15 +45,21 @@ class CartScreen extends StatelessWidget {
     ),
     backgroundColor: Theme.of(context).primaryColor,),
       FlatButton(
-        child: Text(
+        child: _isLoading ? CircularProgressIndicator() : Text(
             'Order Now',
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
         textColor: Theme.of(context).primaryColor,
-        onPressed: () {
-          Provider.of<Orders>(context, listen: false).addOrder(cart.items.values.toList(), cart.totalAmount);
+        onPressed: (cart.totalAmount <= 0 ) || _isLoading ? null : () async {
+          setState(() {
+            _isLoading = true;
+          });
+          await Provider.of<Orders>(context, listen: false).addOrder(cart.items.values.toList(), cart.totalAmount);
+          setState(() {
+            _isLoading = false;
+          });
           cart.clear();
         },
         splashColor: Theme.of(context).accentColor,
