@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart';
 
 class Auth with ChangeNotifier {
@@ -11,7 +12,8 @@ class Auth with ChangeNotifier {
 
 
   Future<void> signUp(String email, String password) async {
-    const url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyC246tkJCH0GfGI6mDR_Coqh25RO-mG0fA';
+    final apiKey = dotenv.env['api_key'];
+    final url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$apiKey';
     try {
       final response = await post(Uri.parse(url), body: json.encode(
           {
