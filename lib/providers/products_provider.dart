@@ -39,6 +39,10 @@ class Products with ChangeNotifier{
   ];
 
   bool _showFavouritesOnly = false;
+  String? authToken;
+  final String userId;
+
+  Products(this.authToken, this.userId, this._items);
 
   List<Product> get items {
     // if(_showFavouritesOnly){
@@ -51,15 +55,6 @@ class Products with ChangeNotifier{
     return _items.where((item) => item.isFavourite).toList();
   }
 
-  // void addProduct(Product product){
-  //   _items.add(product);
-  //   notifyListeners();
-  // }
-  //
-  // void showFavouritesOnly(){
-  //   _showFavouritesOnly = true;
-  //   notifyListeners();
-  // }
 
   void showAll(){
     _showFavouritesOnly = false;
@@ -67,18 +62,16 @@ class Products with ChangeNotifier{
   }
 
   Future<void> addProduct(Product product) async{
-    const url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/products.json';
+    final url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/products.json?auth=$authToken';
     try {
      final response = await post(Uri.parse(url), body: json.encode({
        'title': product.title,
        'description': product.desc,
        'imageUrl': product.imageUrl,
        'price': product.price,
-       'isFavourite': product.isFavourite
+       'creatorId': userId
      })
      );
-
-
 
      final newProduct = Product(
          title: product.title,
@@ -97,30 +90,36 @@ class Products with ChangeNotifier{
 
   }
 
-  Future<void> fetchProducts() async{
-    const url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/products.json';
+  Future<void> fetchProducts([bool filterByUser = false]) async{
+   final filterString = filterByUser ? 'orderBy="creatorId"&equalTo="$userId"' : '';
+    var url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/products.json?auth=$authToken&$filterString';
 
     try {
       final response = await get(Uri.parse(url));
       final fetchedData = json.decode(response.body) as Map<String, dynamic>;
-      // if(fetchedData == null){
-      //   return;
-      // }
+      if(fetchedData.isEmpty){
+        return;
+      }
+      url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/userFavourites/$userId.json?auth=$authToken';
+
+      final favouriteResponse = await get(Uri.parse(url));
+      final favouriteData = json.decode(favouriteResponse.body);
+
       final List<Product> loadedProducts = [];
-      print(fetchedData);
-      fetchedData.forEach((id, data){
+      // print(fetchedData);
+      fetchedData.forEach ((id, data){
         loadedProducts.add(Product(
           id: id,
           title: data['title'],
           desc: data['description'],
           price: data['price'],
-          imageUrl: data['imageUrl'],
-          isFavourite: data['isFavourite']
+          isFavourite: favouriteData == null ? false : data['imageUrl'] ?? false,
+          imageUrl: data['imageUrl']
         ));
       });
       _items = loadedProducts;
       notifyListeners();
-      print(json.decode(response.body));
+      // print(json.decode(response.body));
     }catch(error){
       // throw error;
     }
@@ -133,7 +132,7 @@ class Products with ChangeNotifier{
   Future<void> updateProduct(String id, Product newProduct) async{
     final prodIndex =_items.indexWhere((prod) => (prod.id == id));
     if(prodIndex >= 0) {
-      final url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/products/$id.json';
+      final url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/products/$id.json?auth=$authToken';
       try {
         await patch(Uri.parse(url), body: json.encode({
           'title': newProduct.title,
@@ -151,7 +150,7 @@ class Products with ChangeNotifier{
   }
 
   Future<void> deleteProduct(String id) async {
-    final url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/products/$id.json';
+    final url = 'https://flutter-project-4fd4f-default-rtdb.firebaseio.com/products/$id.json?auth=$authToken';
     final existingProductIndex = _items.indexWhere((prod) => prod.id == id);
     dynamic existingProduct = _items[existingProductIndex];
     final response = await delete(Uri.parse(url));
