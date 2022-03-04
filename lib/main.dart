@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:my_shop/helpers/custom_route.dart';
 import 'package:my_shop/providers/auth.dart';
 import 'package:my_shop/providers/cart.dart';
 import 'package:my_shop/providers/orders.dart';
@@ -9,6 +11,7 @@ import 'package:my_shop/screens/edit_product_screen.dart';
 import 'package:my_shop/screens/orders_screen.dart';
 import 'package:my_shop/screens/product_detail_screen.dart';
 import 'package:my_shop/screens/product_overview_screen.dart';
+import 'package:my_shop/screens/splash_screen.dart';
 import 'package:my_shop/screens/user_products_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -24,25 +27,46 @@ class MyApp extends StatelessWidget {
       ChangeNotifierProvider.value(
         value: Auth(),
       ),
-        ChangeNotifierProvider(
-        create: (BuildContext context) => Products(),
-        ),
+      ChangeNotifierProxyProvider<Auth, Products>(
+      update:  (ctx, auth, previousProducts) => Products(
+          auth.token,
+          auth.userId.toString(),
+          previousProducts == null ? [] : previousProducts.items
+      ),
+      create: (BuildContext context) => Products(null, '', []),
+      ),
       ChangeNotifierProvider(
         create: (BuildContext context) => Cart(),
       ),
-      ChangeNotifierProvider(
-        create: (BuildContext context) => Orders(),
+      ChangeNotifierProxyProvider<Auth, Orders>(
+        update:  (ctx, auth, previousOrders) => Orders(auth.token.toString(), auth.userId.toString(), previousOrders == null ? [] : previousOrders.allOrders),
+        create: (BuildContext context) => Orders('', '', []),
       )
 
     ],
-      child: MaterialApp(
+      child: Consumer<Auth>(builder: (ctx, auth, _) => MaterialApp(
         title: 'Slim Daddy\'s shop',
         theme: ThemeData(
             primarySwatch: Colors.purple,
             accentColor: Colors.amber,
-            fontFamily: 'Abhaya'
+            fontFamily: 'Abhaya',
+          pageTransitionsTheme: PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android : CustomPageTransitionBuilder(),
+              TargetPlatform.iOS: CustomPageTransitionBuilder()
+            }
+          )
         ),
-        home: AuthScreen(),
+        home: auth.isAuth
+            ? ProductOverviewScreen()
+            : FutureBuilder(
+                  future: auth.tryAutoLogin(),
+                  builder: (ctx, authResultSnapshot) =>
+                      authResultSnapshot.connectionState == ConnectionState.waiting
+                      ? SplashScreen()
+                      : AuthScreen(),
+
+               ) ,
         routes:  {
           ProductDetailScreen.routeName: (ctx) => ProductDetailScreen(),
           CartScreen.routeName: (ctx) => CartScreen(),
@@ -51,7 +75,7 @@ class MyApp extends StatelessWidget {
           EditProductsScreen.routeName: (ctx) => EditProductsScreen()
 
         },
-      ),
+      ),)
     );
   }
 }
